@@ -13,13 +13,10 @@ import { customElement } from '@refinitiv-ui/core/decorators/custom-element.js';
 import { property } from '@refinitiv-ui/core/decorators/property.js';
 import { unsafeSVG } from '@refinitiv-ui/core/directives/unsafe-svg.js';
 
-import { Deferred, isBase64svg, isUrl } from '@refinitiv-ui/utils/loader.js';
-
 import { efConfig } from '../configuration/index.js';
 import type { Config } from '../configuration/index.js';
 import { VERSION } from '../version.js';
 import { IconLoader } from './utils/IconLoader.js';
-import { SpriteLoader } from './utils/SpriteLoader.js';
 
 const EmptyTemplate = svg``;
 
@@ -88,14 +85,8 @@ export class Icon extends BasicElement {
   public set icon(value: string | null) {
     const oldValue = this._icon;
     if (oldValue !== value) {
-      // debugger;
-      // this.deferIconReady();
-      // this._icon = value;
-      // requestAnimationFrame(() => this.updateRenderer());
-      // ---
       this._icon = value;
       void this.setIconSrc();
-      // ---
       this.requestUpdate('icon', oldValue);
     }
   }
@@ -131,23 +122,8 @@ export class Icon extends BasicElement {
       this._template = value;
       this.requestUpdate();
     }
-    this.iconReady.resolve();
   }
 
-  /**
-   * A deferred promise representing icon ready.
-   * It would be resolved when the icon svg has been fetched and parsed, or
-   * when the icon svg is unavailable/invalid.
-   */
-  private iconReady!: Deferred<void>;
-
-  constructor() {
-    super();
-    this.iconReady = new Deferred<void>();
-    // `iconReady` resolves at this stage so that `updateComplete` would be resolvable
-    // even in the case that `icon` attribute is missing.
-    this.iconReady.resolve();
-  }
 
   /**
    * Check if the icon map configuration has content
@@ -170,55 +146,6 @@ export class Icon extends BasicElement {
     });
   }
 
-  protected override async getUpdateComplete(): Promise<boolean> {
-    const result = await super.getUpdateComplete();
-    await this.iconReady.promise;
-    return result;
-  }
-
-  /**
-   * instantiate a new deferred promise for icon ready if it's not pending already
-   * @returns {void}
-   */
-  private deferIconReady(): void {
-    if (this.iconReady.isPending()) {
-      return;
-    }
-    this.iconReady = new Deferred<void>();
-  }
-
-  /**
-   * Check if the icon is valid to render
-   * @returns false if icon value or icon map value is invalid
-   */
-  private isIconValid(): boolean {
-    if (!this._icon) {
-      return false;
-    }
-    if (this.iconMap && !isBase64svg(this.iconMap) && !isUrl(this.iconMap)) {
-      return false;
-    }
-    return true;
-  }
-
-  /**
-   * Update the icon renderer
-   * @returns {void}
-   */
-  private updateRenderer(): void {
-    if (!this.isIconValid()) {
-      return this.clearIcon();
-    }
-    const iconProperty = this._icon!;
-    if (this.iconMap) {
-      void this.loadAndRenderIcon(this.iconMap);
-    } else if (isUrl(iconProperty) || IconLoader.isPrefixSet) {
-      void this.loadAndRenderIcon(iconProperty);
-    } else {
-      void this.loadAndRenderSpriteIcon(iconProperty);
-    }
-  }
-
   /**
    * Tries to load an icon from the url provided
    * and the renders this into the icon template.
@@ -237,23 +164,6 @@ export class Icon extends BasicElement {
     this.template = await iconTemplateCacheItem;
   }
 
-  /**
-   * Tries to load get an icon from the sprite url provided
-   * and the renders this into the icon template.
-   * @param iconName Name of the svg icon.
-   * @returns {void}
-   */
-  private async loadAndRenderSpriteIcon(iconName: string): Promise<void> {
-    const iconTemplateCacheItem = iconTemplateCache.get(iconName);
-    if (!iconTemplateCacheItem) {
-      iconTemplateCache.set(
-        iconName,
-        SpriteLoader.loadSpriteSVG(iconName).then((body) => svg`${unsafeSVG(body)}`)
-      );
-      return this.loadAndRenderIcon(iconName); // Load again and await cache result
-    }
-    this.template = await iconTemplateCacheItem;
-  }
 
   /**
    * Get and cache CDN prefix
@@ -265,10 +175,6 @@ export class Icon extends BasicElement {
     if (!IconLoader.isPrefixSet) {
       const CDNPrefix = this.getComputedVariable('--cdn-prefix');
       IconLoader.setCdnPrefix(CDNPrefix);
-    }
-    if (!SpriteLoader.isPrefixSet) {
-      const CDNSpritePrefix = this.getComputedVariable('--cdn-sprite-prefix');
-      SpriteLoader.setCdnPrefix(CDNSpritePrefix);
     }
   }
 
