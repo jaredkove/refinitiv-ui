@@ -1,4 +1,4 @@
-import { BasicElement, CSSResultGroup, css } from '@refinitiv-ui/core';
+import { BasicElement, CSSResultGroup, TemplateResult, css, html } from '@refinitiv-ui/core';
 import { customElement } from '@refinitiv-ui/core/decorators/custom-element.js';
 import { property } from '@refinitiv-ui/core/decorators/property.js';
 
@@ -17,6 +17,8 @@ export class OverlayBackdrop extends BasicElement {
   static override get version(): string {
     return VERSION;
   }
+
+  private static Template = html``;
 
   /**
    * A `CSSResultGroup` that will be used
@@ -48,6 +50,15 @@ export class OverlayBackdrop extends BasicElement {
     } else {
       this.style.removeProperty('z-index');
     }
+  }
+
+  /**
+   * A `TemplateResult` that will be used
+   * to render the updated internal template.
+   * @return Render template
+   */
+  public override render(): TemplateResult {
+    return OverlayBackdrop.Template;
   }
 }
 

@@ -1,11 +1,13 @@
 import { CSSResultArray, LitElement, unsafeCSS } from 'lit';
 
 import { property } from '../decorators/property.js';
+import type { StyleInfo } from '../interfaces/StyleInfo';
 import { ElementRegistry } from '../registries/ElementRegistry.js';
 import { FocusRegistry } from '../registries/FocusRegistry.js';
 import type { CSSValue } from '../types/base';
 import { FocusableHelper } from '../utils/focusableHelper.js';
 import { BasicElementSymbol } from '../utils/helpers.js';
+import { ShadyCSS } from '../utils/shadyStyles.js';
 
 const CSS_VARIABLE_REGEXP = /^--\w/;
 const CSS_VARIABLE_REPLACE_REGEXP = /['"]([^'"]+?)['"]/g;
@@ -16,6 +18,27 @@ const toChangedEvent = (name: string): string =>
 
 const toInputEvent = (name: string): string =>
   name === 'value' ? 'input' : `${name.replace(NOTIFY_REGEXP, '$1-').toLowerCase()}-input`;
+
+/**
+ * Gets a computed style value from any HTML element
+ * @param el Element to get computed styles from
+ * @param key CSS property key, used to get the value
+ * @returns CSS style property value
+ */
+const getComputedStyleValue = (el: HTMLElement, key: string): string => {
+  if (ShadyCSS) {
+    try {
+      /**
+       * There's a bug in ShadyCSS. Which means this can fail,
+       * if called on an element too early :(
+       */
+      return ShadyCSS.getComputedStyleValue(el, key) as unknown as string;
+    } catch (e) {
+      return '';
+    }
+  }
+  return getComputedStyle(el).getPropertyValue(key);
+};
 
 /**
  * Basic element base class.
@@ -87,6 +110,18 @@ export abstract class BasicElement extends LitElement {
    * Gets any defined css variables by name/key
    * @param options options list of variables and fallbacks
    * @returns value of the css variable, or, fallback if specified, when a a variable is null.
+   * @deprecated
+   */
+  protected cssVariable(...options: CSSValue[]): string {
+    /* eslint-disable-next-line no-console */
+    console.warn('this.cssVariable() is deprecated. Use this.getComputedVariable() instead.');
+    return this.getComputedVariable(...options);
+  }
+
+  /**
+   * Gets any defined css variables by name/key
+   * @param options options list of variables and fallbacks
+   * @returns value of the css variable, or, fallback if specified, when a a variable is null.
    * @example
    * this.getComputedVariable('--valid-name'); // return value of the --valid-name
    * this.getComputedVariable('--invalid-name', '10px'); // return fallback value 10px
@@ -95,10 +130,7 @@ export abstract class BasicElement extends LitElement {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const option = options.length ? options.shift()! : '';
     if (CSS_VARIABLE_REGEXP.test(option)) {
-      const val = getComputedStyle(this)
-        .getPropertyValue(option)
-        .trim()
-        .replace(CSS_VARIABLE_REPLACE_REGEXP, '$1');
+      const val = getComputedStyleValue(this, option).trim().replace(CSS_VARIABLE_REPLACE_REGEXP, '$1');
       return val ? val : this.getComputedVariable(...options);
     }
     return option; // fallback
@@ -112,11 +144,24 @@ export abstract class BasicElement extends LitElement {
    */
   protected updateVariable(key: string, value: CSSValue | null | undefined): void {
     if (CSS_VARIABLE_REGEXP.test(key)) {
-      if (value === null || value === undefined) {
+      if (ShadyCSS) {
+        ShadyCSS.styleSubtree(this, { [key]: value });
+      } else if (value === null || value === undefined) {
         this.style.removeProperty(key);
       } else {
         this.style.setProperty(key, value);
       }
+    }
+  }
+
+  /**
+   * Update styles when using ShadyCSS scoping and custom property shim
+   * @param props properties for apply to the document
+   * @returns {void}
+   */
+  protected updateStyles(props?: StyleInfo): void {
+    if (ShadyCSS) {
+      ShadyCSS.styleDocument(props);
     }
   }
 

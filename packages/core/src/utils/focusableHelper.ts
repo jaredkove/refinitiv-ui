@@ -1,5 +1,6 @@
 import type { BasicElement } from '../elements/BasicElement';
 import { isBasicElement } from './helpers.js';
+import { matches } from './matches.js';
 
 type DelegatedList = {
   element: BasicElement;
@@ -40,9 +41,9 @@ export abstract class FocusableHelper {
     result: HTMLElement[],
     delegatedList: DelegatedList
   ): boolean {
+    // If not an element or not visible, no need to explore children.
     const element = node as HTMLElement;
 
-    // If not an element or not visible, no need to explore children.
     if (node.nodeType !== Node.ELEMENT_NODE || !this.isVisible(element)) {
       return false;
     }
@@ -60,7 +61,7 @@ export abstract class FocusableHelper {
       // Use shadow root if possible, will check for distributed nodes.
       children = element.shadowRoot.children;
     } else {
-      children = element.children || [];
+      children = element.children || []; // in IE11 for SVG elements can be undefined
     }
 
     let childrenNeedSort = false;
@@ -221,11 +222,11 @@ export abstract class FocusableHelper {
     // http://allyjs.io/data-tables/focusable.html
 
     // Elements that cannot be focused if they have [disabled] attribute.
-    if (element.matches('input, select, textarea, button, object')) {
-      return element.matches(':not([disabled])');
+    if (matches(element, 'input, select, textarea, button, object')) {
+      return matches(element, ':not([disabled])');
     }
     // Elements that can be focused even if they have [disabled] attribute.
-    return element.matches('a[href], area[href], iframe, [tabindex], [contentEditable]');
+    return matches(element, 'a[href], area[href], iframe, [tabindex], [contentEditable]');
   }
 
   /**

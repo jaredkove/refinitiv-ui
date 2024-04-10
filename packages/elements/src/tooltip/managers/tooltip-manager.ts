@@ -1,4 +1,5 @@
 import { TimeoutTaskRunner } from '@refinitiv-ui/utils/async.js';
+import { isIE } from '@refinitiv-ui/utils/browser.js';
 
 import type { DocumentCallbacks } from '../helpers/types';
 import type { Tooltip } from '../index.js';
@@ -103,7 +104,10 @@ class TooltipManager {
 
   public register(tooltip: Tooltip, documentCallbacks: DocumentCallbacks): void {
     if (!this.registry.size) {
-      const eventOptions = { passive: true };
+      // IE11 does not support event options
+      const supportOptions = !isIE;
+      const eventOptions = supportOptions ? { passive: true } : undefined;
+
       document.addEventListener('mousemove', this.onMouseMove, eventOptions);
       document.addEventListener('mouseout', this.onMouseOut, eventOptions);
       document.addEventListener('mouseleave', this.onMouseLeave, eventOptions);
@@ -111,7 +115,7 @@ class TooltipManager {
       document.addEventListener('keydown', this.onKeyDown, eventOptions);
       document.body?.addEventListener('blur', this.onBlur, eventOptions);
 
-      const clickEventOptions = { passive: true, capture: true };
+      const clickEventOptions = supportOptions ? { passive: true, capture: true } : true;
       document.addEventListener('click', this.onClick, clickEventOptions);
       document.addEventListener('contextmenu', this.onClick, clickEventOptions);
     }
