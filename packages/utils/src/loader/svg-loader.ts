@@ -50,27 +50,48 @@ const stripUnsafeNodes = (...elements: Node[]): void => {
   }
 };
 
-/**
- * Checks to see whether the response is a valid SVG response
- * @param response Request response to test
- * @returns Is valid SVG
- */
-const isValidResponse = (response: Response | undefined): response is Response => {
-  const isSVG = Boolean(response?.headers.get('content-type')?.startsWith('image/svg+xml'));
-  return Boolean(response) && Boolean(response?.ok) && response?.status === 200 && isSVG;
+// /**
+//  * Checks to see whether the response is a valid SVG response
+//  * @param response Request response to test
+//  * @returns Is valid SVG
+//  */
+// const isValidResponse = (response: Response | undefined): response is Response => {
+//   const isSVG = Boolean(response?.headers.get('content-type')?.startsWith('image/svg+xml'));
+//   return Boolean(response) && Boolean(response?.ok) && response?.status === 200 && isSVG;
+// };
+const isValidResponse = (response: XMLHttpRequest | undefined): response is XMLHttpRequest => {
+  return (
+    !!response && response.status === 200 && response.getResponseHeader('content-type') === 'image/svg+xml'
+  );
 };
 
+// /**
+//  * Extracts and sanitizes any valid SVG from response.
+//  * @param response Response to extract SVG from
+//  * @returns SVG result or null
+//  */
+// const extractSafeSVG = async (response: Response | undefined): Promise<SVGElement | null> => {
+//   if (isValidResponse(response)) {
+//     // clone to support preload to prevent locked response
+//     const responseText = await response.clone().text();
+//     const svgDocument = new window.DOMParser().parseFromString(responseText, 'image/svg+xml');
+//     const svg = svgDocument.children[svgDocument.children.length - 1];
+//     if (svg instanceof SVGElement) {
+//       stripUnsafeNodes(svg);
+//       return svg;
+//     }
+//   }
+//   return null;
+// };
 /**
  * Extracts and sanitizes any valid SVG from response.
  * @param response Response to extract SVG from
  * @returns SVG result or null
  */
-const extractSafeSVG = async (response: Response | undefined): Promise<SVGElement | null> => {
-  if (isValidResponse(response)) {
-    // clone to support preload to prevent locked response
-    const responseText = await response.clone().text();
-    const svgDocument = new window.DOMParser().parseFromString(responseText, 'image/svg+xml');
-    const svg = svgDocument.children[svgDocument.children.length - 1];
+const extractSafeSVG = (response: XMLHttpRequest | undefined): SVGElement | null => {
+  if (isValidResponse(response) && response.responseXML) {
+    const svgDocument = response.responseXML.cloneNode(true) as Document;
+    const svg = svgDocument.firstElementChild;
     if (svg instanceof SVGElement) {
       stripUnsafeNodes(svg);
       return svg;

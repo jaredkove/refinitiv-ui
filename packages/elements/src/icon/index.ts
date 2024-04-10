@@ -23,6 +23,12 @@ import { SpriteLoader } from './utils/SpriteLoader.js';
 
 const EmptyTemplate = svg``;
 
+declare global {
+  interface Window {
+      a:any;
+  }
+}
+
 /**
  * Cache for reusing SVG template results across multiple icons.
  * Reusing these templates increases performance dramatically when many icons are rendered.
@@ -82,11 +88,34 @@ export class Icon extends BasicElement {
   public set icon(value: string | null) {
     const oldValue = this._icon;
     if (oldValue !== value) {
-      this.deferIconReady();
+      // debugger;
+      // this.deferIconReady();
+      // this._icon = value;
+      // requestAnimationFrame(() => this.updateRenderer());
+      // ---
       this._icon = value;
-      requestAnimationFrame(() => this.updateRenderer());
+      void this.setIconSrc();
+      // ---
       this.requestUpdate('icon', oldValue);
     }
+  }
+  private _src: string | null = null;
+  public get src(): string | null {
+    return this._src;
+  }
+  public set src(value: string | null) {
+    if (this.src !== value) {
+      this._src = value;
+      this.clearIcon();
+      if (this.icon && this.iconMap) {
+        void this.loadAndRenderIcon(this.iconMap);
+      } else if (value) {
+        void this.loadAndRenderIcon(value);
+      }
+    }
+  }
+  private async setIconSrc(): Promise<void> {
+    this.src = this.icon ? await IconLoader.getSrc(this.icon) : null;
   }
 
   private _template: TemplateResult = EmptyTemplate;
@@ -136,6 +165,9 @@ export class Icon extends BasicElement {
   protected override firstUpdated(changedProperties: PropertyValues): void {
     super.firstUpdated(changedProperties);
     this.setPrefix();
+    void this.updateComplete.then(() => {
+      console.log(performance.now() - window.a);
+    });
   }
 
   protected override async getUpdateComplete(): Promise<boolean> {
